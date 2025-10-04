@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k8s-demo
+  labels:
+    name: k8s-demo
+    environment: development
+    project: kubernetes-learning
