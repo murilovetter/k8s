@@ -1,0 +1,130 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: |
+          apps/frontend/package-lock.json
+          apps/backend/package-lock.json
+    
+    - name: Install Frontend Dependencies
+      run: |
+        cd apps/frontend
+        npm ci
+    
+    - name: Install Backend Dependencies
+      run: |
+        cd apps/backend
+        npm ci
+    
+    - name: Run Frontend Tests
+      run: |
+        cd apps/frontend
+        npm test -- --coverage --watchAll=false
+    
+    - name: Run Backend Tests
+      run: |
+        cd apps/backend
+        npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+    
+    - name: Build and push Frontend image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./docker/Dockerfile.frontend
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}
+        labels: ${{ steps.meta.outputs.labels }}
+    
+    - name: Build and push Backend image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./docker/Dockerfile.backend
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Deploy to Kubernetes
+      run: |
+        # Update image tags in manifests
+        sed -i "s|k8s-demo/frontend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}|g" k8s-manifests/frontend/deployment.yaml
+        sed -i "s|k8s-demo/backend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}|g" k8s-manifests/backend/deployment.yaml
+        
+        # Apply manifests
+        kubectl apply -f k8s-manifests/namespace.yaml
+        kubectl apply -f k8s-manifests/mysql/
+        kubectl apply -f k8s-manifests/backend/
+        kubectl apply -f k8s-manifests/frontend/
+        kubectl apply -f k8s-manifests/ingress/
+        kubectl apply -f k8s-manifests/monitoring/
+    
+    - name: Verify deployment
+      run: |
+        kubectl get pods -n k8s-demo
+        kubectl get services -n k8s-demo
+        kubectl get ingress -n k8s-demo
