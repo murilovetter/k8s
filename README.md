@@ -117,6 +117,23 @@ kubectl exec -it <pod-name> -n k8s-demo -- /bin/bash
 - [x] Basic CI/CD
 - [x] Troubleshooting
 
+## 🔧 Recent Fixes & Improvements
+
+### Monitoring Configuration
+- **Prometheus**: Configured with `--web.external-url` for proper Ingress routing
+- **Grafana**: Configured with `GF_SERVER_ROOT_URL` and `GF_SERVER_SERVE_FROM_SUB_PATH` for subpath support
+- **Ingress**: Optimized routing rules for all services
+
+### Application Fixes
+- **Backend**: Fixed metrics endpoint Promise handling
+- **Frontend**: Improved error handling and API response processing
+- **Docker**: Updated build processes for better compatibility
+
+### Infrastructure Improvements
+- **MySQL**: Corrected environment variables and initialization
+- **Scripts**: Enhanced setup and deployment automation
+- **Documentation**: Updated troubleshooting and monitoring guides
+
 ## 📝 Commit Roadmap
 
 ### Phase 1: Base Structure
@@ -125,19 +142,19 @@ kubectl exec -it <pod-name> -n k8s-demo -- /bin/bash
 - [x] Base scripts
 
 ### Phase 2: Applications
-- [ ] React Frontend
-- [ ] Node.js Backend
-- [ ] MySQL Configuration
+- [x] React Frontend
+- [x] Node.js Backend
+- [x] MySQL Configuration
 
 ### Phase 3: Kubernetes
-- [ ] Base manifests
-- [ ] Deployments
-- [ ] Services and Ingress
+- [x] Base manifests
+- [x] Deployments
+- [x] Services and Ingress
 
 ### Phase 4: Monitoring
-- [ ] Prometheus
-- [ ] Grafana
-- [ ] Dashboards
+- [x] Prometheus
+- [x] Grafana
+- [x] Dashboards
 
 ### Phase 5: CI/CD
 - [ ] GitHub Actions

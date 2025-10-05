@@ -18,6 +18,7 @@ spec:
       containers:
       - name: frontend
         image: k8s-demo/frontend:latest
+        imagePullPolicy: Never
         ports:
         - containerPort: 80
         resources:

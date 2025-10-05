@@ -15,12 +15,17 @@ function App() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      // Use relative URL - Nginx will proxy to backend
       const response = await axios.get('/api/users');
-      setUsers(response.data);
+      console.log('API Response:', response.data);
+      // Ensure we always have an array
+      const usersData = Array.isArray(response.data) ? response.data : [];
+      setUsers(usersData);
       setError(null);
     } catch (err) {
-      setError('Failed to fetch users');
       console.error('Error fetching users:', err);
+      setError('Failed to fetch users');
+      setUsers([]); // Ensure users is always an array
     } finally {
       setLoading(false);
     }
@@ -87,7 +92,7 @@ function App() {
             {loading && <p>Loading...</p>}
             {error && <p className="error">{error}</p>}
             {users.length === 0 && !loading && <p>No users found</p>}
-            {users.map(user => (
+            {Array.isArray(users) && users.map(user => (
               <div key={user.id} className="user-card">
                 <div className="user-info">
                   <h3>{user.name}</h3>

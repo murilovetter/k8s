@@ -4,22 +4,27 @@ metadata:
   name: k8s-demo-ingress
   namespace: k8s-demo
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   ingressClassName: nginx
   rules:
   - host: k8s-demo.local
     http:
       paths:
-      - path: /
+      - path: /prometheus
         pathType: Prefix
         backend:
           service:
-            name: frontend
+            name: prometheus
             port:
-              number: 80
+              number: 9090
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
       - path: /api
         pathType: Prefix
         backend:
@@ -27,3 +32,10 @@ spec:
             name: backend
             port:
               number: 3000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80

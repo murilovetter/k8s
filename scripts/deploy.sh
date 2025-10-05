@@ -35,7 +35,7 @@ echo -e "${BLUE}"
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║                    🚀 KUBERNETES DEPLOY                      ║"
 echo "║                                                              ║"
-echo "║  Performing complete application deployment                 ║"
+echo "║  Performing complete application deployment                  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 

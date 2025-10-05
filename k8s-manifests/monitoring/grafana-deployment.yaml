@@ -25,6 +25,10 @@ spec:
           value: "admin"
         - name: GF_USERS_ALLOW_SIGN_UP
           value: "false"
+        - name: GF_SERVER_ROOT_URL
+          value: "http://k8s-demo.local/grafana"
+        - name: GF_SERVER_SERVE_FROM_SUB_PATH
+          value: "true"
         resources:
           requests:
             memory: "256Mi"
