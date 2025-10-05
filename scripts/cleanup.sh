@@ -126,6 +126,60 @@ kubectl delete storageclass local-storage 2>/dev/null || true
 
 success "Resources removed"
 
+# 3.5. Wipe hostPath data on nodes (WSL/Docker Desktop fix)
+log "Wiping hostPath data on nodes (if present) ..."
+
+# Create a temporary DaemonSet that mounts host /tmp and removes /tmp/mysql-data
+HOST_CLEANER_YAML="/tmp/host-cleaner.yaml"
+cat > "$HOST_CLEANER_YAML" <<EOF
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: host-cleaner
+  namespace: k8s-demo
+spec:
+  selector:
+    matchLabels:
+      app: host-cleaner
+  template:
+    metadata:
+      labels:
+        app: host-cleaner
+    spec:
+      hostPID: true
+      hostNetwork: true
+      containers:
+      - name: cleaner
+        image: busybox:1.36
+        securityContext:
+          privileged: true
+        command: ["/bin/sh","-c"]
+        args:
+          - |
+            echo "Cleaning /tmp/mysql-data on host...";
+            rm -rf /host-tmp/mysql-data || true;
+            echo "Done";
+            sleep 5;
+        volumeMounts:
+        - name: host-tmp
+          mountPath: /host-tmp
+      terminationGracePeriodSeconds: 0
+      volumes:
+      - name: host-tmp
+        hostPath:
+          path: /tmp
+          type: Directory
+EOF
+
+# Apply DaemonSet and wait briefly
+kubectl apply -f "$HOST_CLEANER_YAML" 1>/dev/null || true
+kubectl rollout status ds/host-cleaner -n k8s-demo --timeout=60s 1>/dev/null || true
+
+# Print logs (best-effort) then remove DaemonSet
+kubectl logs -n k8s-demo ds/host-cleaner 2>/dev/null || true
+kubectl delete ds host-cleaner -n k8s-demo --wait=true 1>/dev/null || true
+rm -f "$HOST_CLEANER_YAML"
+
 # 4. Wait for complete removal
 log "Waiting for complete pod removal..."
 kubectl wait --for=delete pod --all -n k8s-demo --timeout=60s 2>/dev/null || true
