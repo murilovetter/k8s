@@ -55,7 +55,22 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 0
 fi
 
-# 1. Check if namespace exists
+# 1. Check prerequisites
+log "Checking prerequisites..."
+
+# Check kubectl
+if ! command -v kubectl &> /dev/null; then
+    error "kubectl is not installed or not in PATH"
+fi
+
+# Check cluster connectivity
+if ! kubectl cluster-info &> /dev/null; then
+    error "Cannot connect to Kubernetes cluster. Check your kubeconfig."
+fi
+
+success "Prerequisites check passed"
+
+# 2. Check if namespace exists
 log "Checking namespace k8s-demo..."
 
 if ! kubectl get namespace k8s-demo &> /dev/null; then
@@ -65,7 +80,7 @@ fi
 
 success "Namespace k8s-demo found"
 
-# 2. List resources before cleanup
+# 3. List resources before cleanup
 log "Listing resources before cleanup..."
 
 echo ""
@@ -89,7 +104,7 @@ echo "============="
 kubectl get configmaps -n k8s-demo
 echo ""
 
-# 3. Remove resources
+# 4. Remove resources
 log "Removing resources..."
 
 # Remove deployments
@@ -116,9 +131,50 @@ kubectl delete secret --all -n k8s-demo 2>/dev/null || true
 log "Removing configmaps..."
 kubectl delete configmap --all -n k8s-demo 2>/dev/null || true
 
-# Remove persistent volumes
+# Remove persistent volumes (improved cleanup for Retain policy)
 log "Removing PersistentVolumes..."
-kubectl delete pv mysql-pv 2>/dev/null || true
+
+# First, try to delete the PV normally
+if kubectl get pv mysql-pv &> /dev/null; then
+    log "Found mysql-pv, attempting removal..."
+    
+    # Check if PV is bound to a PVC
+    PV_STATUS=$(kubectl get pv mysql-pv -o jsonpath='{.status.phase}' 2>/dev/null || echo "NotFound")
+    
+    if [[ "$PV_STATUS" == "Bound" ]]; then
+        log "PV is still bound, forcing PVC deletion..."
+        kubectl delete pvc mysql-pvc -n k8s-demo --force --grace-period=0 2>/dev/null || true
+        
+        # Wait for PV to become available
+        log "Waiting for PV to become available..."
+        kubectl wait --for=jsonpath='{.status.phase}'=Available pv/mysql-pv --timeout=30s 2>/dev/null || true
+    fi
+    
+    # Try to delete the PV
+    kubectl delete pv mysql-pv 2>/dev/null || true
+    
+    # If PV still exists, force removal
+    if kubectl get pv mysql-pv &> /dev/null; then
+        warning "PV mysql-pv still exists, forcing removal..."
+        
+        # Remove finalizers to allow deletion
+        kubectl patch pv mysql-pv -p '{"metadata":{"finalizers":null}}' 2>/dev/null || true
+        
+        # Force delete
+        kubectl delete pv mysql-pv --force --grace-period=0 2>/dev/null || true
+        
+        # Final check
+        if kubectl get pv mysql-pv &> /dev/null; then
+            error "Failed to remove PersistentVolume mysql-pv. Manual intervention required."
+        else
+            success "PersistentVolume mysql-pv removed successfully"
+        fi
+    else
+        success "PersistentVolume mysql-pv removed successfully"
+    fi
+else
+    log "PersistentVolume mysql-pv not found"
+fi
 
 # Remove storage class
 log "Removing StorageClass..."
@@ -126,8 +182,16 @@ kubectl delete storageclass local-storage 2>/dev/null || true
 
 success "Resources removed"
 
-# 3.5. Wipe hostPath data on nodes (WSL/Docker Desktop fix)
+# 4.5. Wipe hostPath data on nodes (improved cleanup)
 log "Wiping hostPath data on nodes (if present) ..."
+
+# First, try direct cleanup if we have access
+if [ -d "/tmp/mysql-data" ]; then
+    log "Found /tmp/mysql-data directory, removing directly..."
+    sudo rm -rf /tmp/mysql-data 2>/dev/null || {
+        warning "Direct removal failed, using DaemonSet cleanup..."
+    }
+fi
 
 # Create a temporary DaemonSet that mounts host /tmp and removes /tmp/mysql-data
 HOST_CLEANER_YAML="/tmp/host-cleaner.yaml"
@@ -156,70 +220,139 @@ spec:
         command: ["/bin/sh","-c"]
         args:
           - |
-            echo "Cleaning /tmp/mysql-data on host...";
+            echo "Cleaning MySQL data directories on host...";
             rm -rf /host-tmp/mysql-data || true;
-            echo "Done";
+            rm -rf /host-var/lib/mysql || true;
+            echo "MySQL data cleanup completed";
             sleep 5;
         volumeMounts:
         - name: host-tmp
           mountPath: /host-tmp
+        - name: host-var-lib
+          mountPath: /host-var/lib
       terminationGracePeriodSeconds: 0
       volumes:
       - name: host-tmp
         hostPath:
           path: /tmp
           type: Directory
+      - name: host-var-lib
+        hostPath:
+          path: /var/lib
+          type: Directory
 EOF
 
 # Apply DaemonSet and wait briefly
+log "Applying host cleaner DaemonSet..."
 kubectl apply -f "$HOST_CLEANER_YAML" 1>/dev/null || true
+
+# Wait for DaemonSet to be ready
+log "Waiting for host cleaner to be ready..."
 kubectl rollout status ds/host-cleaner -n k8s-demo --timeout=60s 1>/dev/null || true
 
 # Print logs (best-effort) then remove DaemonSet
+log "Host cleaner logs:"
 kubectl logs -n k8s-demo ds/host-cleaner 2>/dev/null || true
+
+# Clean up DaemonSet
+log "Removing host cleaner DaemonSet..."
 kubectl delete ds host-cleaner -n k8s-demo --wait=true 1>/dev/null || true
 rm -f "$HOST_CLEANER_YAML"
 
-# 4. Wait for complete removal
+# Verify cleanup
+if [ -d "/tmp/mysql-data" ]; then
+    warning "MySQL data directory still exists at /tmp/mysql-data"
+else
+    success "MySQL data directory cleanup completed"
+fi
+
+# 5. Wait for complete removal
 log "Waiting for complete pod removal..."
 kubectl wait --for=delete pod --all -n k8s-demo --timeout=60s 2>/dev/null || true
 
-# 5. Remove namespace
+# 6. Remove namespace
 log "Removing namespace k8s-demo..."
 kubectl delete namespace k8s-demo
 
 success "Namespace removed"
 
-# 6. Check cleanup
+# 7. Check cleanup
 log "Checking cleanup..."
 
 echo ""
 echo "📊 Status after cleanup:"
 echo "======================="
-kubectl get namespaces | grep k8s-demo || echo "Namespace k8s-demo does not exist"
+
+# Check namespace
+if kubectl get namespace k8s-demo &> /dev/null; then
+    warning "Namespace k8s-demo still exists"
+    kubectl get namespace k8s-demo
+else
+    success "Namespace k8s-demo successfully removed"
+fi
 echo ""
 
+# Check PersistentVolumes
 echo "💾 PersistentVolumes:"
 echo "===================="
-kubectl get pv | grep mysql-pv || echo "PersistentVolume mysql-pv does not exist"
+if kubectl get pv mysql-pv &> /dev/null; then
+    warning "PersistentVolume mysql-pv still exists"
+    kubectl get pv mysql-pv
+else
+    success "PersistentVolume mysql-pv successfully removed"
+fi
 echo ""
 
+# Check StorageClasses
 echo "📦 StorageClasses:"
 echo "================="
-kubectl get storageclass | grep local-storage || echo "StorageClass local-storage does not exist"
+if kubectl get storageclass local-storage &> /dev/null; then
+    warning "StorageClass local-storage still exists"
+    kubectl get storageclass local-storage
+else
+    success "StorageClass local-storage successfully removed"
+fi
 echo ""
 
-# 7. Clean local data (optional)
-log "Cleaning local data..."
-
-# Remove MySQL data directory
-if [ -d "/tmp/mysql-data" ]; then
-    log "Removing directory /tmp/mysql-data..."
-    rm -rf /tmp/mysql-data
-    success "Data directory removed"
+# Check for any remaining resources in k8s-demo namespace
+echo "🔍 Remaining resources in k8s-demo namespace:"
+echo "============================================="
+if kubectl get namespace k8s-demo &> /dev/null; then
+    kubectl get all -n k8s-demo 2>/dev/null || echo "No resources found"
+    kubectl get pvc -n k8s-demo 2>/dev/null || echo "No PVCs found"
+    kubectl get secrets -n k8s-demo 2>/dev/null || echo "No secrets found"
+    kubectl get configmaps -n k8s-demo 2>/dev/null || echo "No configmaps found"
+else
+    echo "Namespace k8s-demo does not exist - cleanup successful"
 fi
+echo ""
 
-# 8. Final information
+# 8. Clean local data (final cleanup)
+log "Performing final local data cleanup..."
+
+# Remove MySQL data directories
+MYSQL_DIRS=("/tmp/mysql-data" "/var/lib/mysql" "/tmp/k8s-mysql-data")
+
+for dir in "${MYSQL_DIRS[@]}"; do
+    if [ -d "$dir" ]; then
+        log "Removing directory $dir..."
+        sudo rm -rf "$dir" 2>/dev/null || {
+            warning "Failed to remove $dir with sudo, trying without..."
+            rm -rf "$dir" 2>/dev/null || warning "Could not remove $dir"
+        }
+        success "Directory $dir removed"
+    else
+        log "Directory $dir does not exist, skipping..."
+    fi
+done
+
+# Clean up any temporary files
+log "Cleaning temporary files..."
+rm -f /tmp/host-cleaner.yaml 2>/dev/null || true
+rm -f /tmp/k8s-*.yaml 2>/dev/null || true
+success "Temporary files cleaned"
+
+# 9. Final information
 echo ""
 echo -e "${GREEN}🎉 Cleanup completed successfully!${NC}"
 echo ""
