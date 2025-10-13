@@ -28,6 +28,7 @@ spec:
           - '--storage.tsdb.retention.time=200h'
           - '--web.enable-lifecycle'
           - '--web.external-url=http://k8s-demo.local/prometheus/'
+          - '--web.route-prefix=/'
         volumeMounts:
         - name: prometheus-config-volume
           mountPath: /etc/prometheus/

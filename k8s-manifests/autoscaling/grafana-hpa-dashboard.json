@@ -1,0 +1,155 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Kubernetes HPA Auto-scaling Dashboard",
+    "tags": ["kubernetes", "hpa", "autoscaling"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "HPA Status Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "kube_horizontalpodautoscaler_status_current_replicas",
+            "legendFormat": "Current Replicas"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "displayMode": "basic"
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "CPU Utilization vs HPA Target",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(container_cpu_usage_seconds_total{namespace=\"k8s-demo\",container!=\"POD\",container!=\"\"}[5m]) * 100",
+            "legendFormat": "CPU Usage %"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_spec_target_metric{metric_name=\"cpu\"}",
+            "legendFormat": "HPA CPU Target"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "CPU %",
+            "max": 100,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Memory Utilization vs HPA Target",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "container_memory_working_set_bytes{namespace=\"k8s-demo\",container!=\"POD\",container!=\"\"} / container_spec_memory_limit_bytes{namespace=\"k8s-demo\",container!=\"POD\",container!=\"\"} * 100",
+            "legendFormat": "Memory Usage %"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_spec_target_metric{metric_name=\"memory\"}",
+            "legendFormat": "HPA Memory Target"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Memory %",
+            "max": 100,
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 4,
+        "title": "Pod Replicas Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kube_horizontalpodautoscaler_status_current_replicas{namespace=\"k8s-demo\"}",
+            "legendFormat": "Current Replicas"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"k8s-demo\"}",
+            "legendFormat": "Desired Replicas"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_spec_min_replicas{namespace=\"k8s-demo\"}",
+            "legendFormat": "Min Replicas"
+          },
+          {
+            "expr": "kube_horizontalpodautoscaler_spec_max_replicas{namespace=\"k8s-demo\"}",
+            "legendFormat": "Max Replicas"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Replicas",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 5,
+        "title": "HPA Scaling Events",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "increase(kube_horizontalpodautoscaler_status_current_replicas{namespace=\"k8s-demo\"}[1h])",
+            "legendFormat": "Scale Up Events"
+          },
+          {
+            "expr": "decrease(kube_horizontalpodautoscaler_status_current_replicas{namespace=\"k8s-demo\"}[1h])",
+            "legendFormat": "Scale Down Events"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 16
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5s"
+  }
+}
