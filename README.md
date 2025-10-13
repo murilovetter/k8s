@@ -4,6 +4,16 @@ This project demonstrates a complete Kubernetes infrastructure with frontend, ba
 
 ## 📋 Overview
 
+### 🎓 Learning with Cursor AI
+This project is part of my Kubernetes learning journey, developed with the assistance of **Cursor AI** for:
+- Code generation and optimization
+- Kubernetes manifest creation and debugging
+- Script automation and best practices
+- Troubleshooting and problem-solving
+- Documentation and explanations
+
+Cursor has been instrumental in accelerating my understanding of Kubernetes concepts, HPA (Horizontal Pod Autoscaler), monitoring with Prometheus/Grafana, and infrastructure automation.
+
 ### Architecture
 ```
 ┌─────────────────────────────────────────────────────────────┐
