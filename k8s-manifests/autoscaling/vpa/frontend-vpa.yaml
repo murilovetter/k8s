@@ -1,0 +1,26 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: frontend-vpa
+  namespace: k8s-demo
+  labels:
+    app: frontend
+    component: vpa
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  updatePolicy:
+    updateMode: "Off"  # Start with Off mode for data collection
+  resourcePolicy:
+    containerPolicies:
+    - containerName: frontend
+      maxAllowed:
+        cpu: "500m"
+        memory: "1Gi"
+      minAllowed:
+        cpu: "25m"
+        memory: "64Mi"
+      controlledResources: ["cpu", "memory"]
+      controlledValues: RequestsAndLimits

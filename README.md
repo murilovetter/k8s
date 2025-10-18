@@ -81,7 +81,7 @@ k8s/
 │   ├── frontend/
 │   ├── ingress/
 │   ├── monitoring/
-│   └── autoscaling/        # HPA and Metrics Server
+│   └── autoscaling/        # HPA, VPA and Metrics Server
 ├── docker/                 # Dockerfiles
 │   ├── Dockerfile.frontend
 │   ├── Dockerfile.backend
@@ -91,12 +91,15 @@ k8s/
 │   ├── deploy.sh
 │   ├── cleanup.sh
 │   ├── setup-autoscaling.sh
+│   ├── setup-vpa.sh
+│   ├── test-vpa.sh
 │   ├── load-test.sh
 │   └── setup-grafana-hpa-dashboard.sh
 └── docs/                   # Documentation
     ├── DEPLOY.md
     ├── MONITORING.md
-    └── TROUBLESHOOTING.md
+    ├── TROUBLESHOOTING.md
+    └── VPA-EXPERIMENT.md
 ```
 
 ## 📚 Documentation
@@ -104,6 +107,7 @@ k8s/
 - [Deploy Guide](docs/DEPLOY.md)
 - [Monitoring](docs/MONITORING.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [VPA Experiment](docs/VPA-EXPERIMENT.md)
 
 ## 🔧 Troubleshooting
 
@@ -125,7 +129,7 @@ If you see "404 Not Found" when configuring Prometheus data source in Grafana:
 
 ## 🚀 Auto-scaling Features
 
-This project includes comprehensive auto-scaling capabilities using Kubernetes HPA (Horizontal Pod Autoscaler).
+This project includes comprehensive auto-scaling capabilities using both Kubernetes HPA (Horizontal Pod Autoscaler) and VPA (Vertical Pod Autoscaler).
 
 ### 🎯 Auto-scaling Configuration
 
@@ -144,6 +148,27 @@ This project includes comprehensive auto-scaling capabilities using Kubernetes H
 - **Memory Target**: 70% utilization
 - **Scale Up**: 50% increase or 2 pods per minute
 - **Scale Down**: 10% decrease or 1 pod per minute
+
+### 🎯 VPA (Vertical Pod Autoscaler) Configuration
+
+#### Backend VPA
+- **Update Mode**: Off (data collection) → Initial (apply recommendations)
+- **CPU Range**: 50m - 1 core
+- **Memory Range**: 128Mi - 2Gi
+- **Controlled Resources**: CPU and Memory
+- **Controlled Values**: Requests and Limits
+
+#### Frontend VPA
+- **Update Mode**: Off (data collection) → Initial (apply recommendations)
+- **CPU Range**: 25m - 500m
+- **Memory Range**: 64Mi - 1Gi
+- **Controlled Resources**: CPU and Memory
+- **Controlled Values**: Requests and Limits
+
+#### VPA Modes
+- **Off**: Only collects data and generates recommendations
+- **Initial**: Applies recommendations to new pods only
+- **Auto**: Automatically applies recommendations (⚠️ can cause downtime)
 
 ### 🧪 Load Testing
 
@@ -183,6 +208,12 @@ The project includes comprehensive load testing capabilities:
 # Setup auto-scaling (installs Metrics Server + HPA)
 ./scripts/setup-autoscaling.sh
 
+# Setup VPA (Vertical Pod Autoscaler)
+./scripts/setup-vpa.sh
+
+# Test VPA functionality
+./scripts/test-vpa.sh
+
 # Fix Grafana Prometheus data source
 ./scripts/fix-grafana-prometheus-datasource.sh
 
@@ -191,6 +222,9 @@ The project includes comprehensive load testing capabilities:
 
 # Monitor HPA status
 kubectl get hpa -n k8s-demo -w
+
+# Monitor VPA status
+kubectl get vpa -n k8s-demo -w
 
 # Check resource usage
 kubectl top pods -n k8s-demo
@@ -215,6 +249,11 @@ kubectl exec -it <pod-name> -n k8s-demo -- /bin/bash
 kubectl get hpa -n k8s-demo
 kubectl describe hpa backend-hpa -n k8s-demo
 kubectl top pods -n k8s-demo
+
+# VPA commands
+kubectl get vpa -n k8s-demo
+kubectl describe vpa backend-vpa -n k8s-demo
+kubectl patch vpa backend-vpa -n k8s-demo --type='merge' -p='{"spec":{"updatePolicy":{"updateMode":"Initial"}}}'
 
 # Load testing
 ./scripts/load-test.sh [duration] [users] [ramp-up] [cpu]
@@ -307,7 +346,7 @@ kubectl top pods -n k8s-demo
 
 ### Scalability Features
 - [x] Horizontal Pod Autoscaling (HPA)
-- [ ] Vertical Pod Autoscaling (VPA)
+- [x] Vertical Pod Autoscaling (VPA)
 - [ ] Cluster autoscaling
 
 ### Advanced CI/CD
