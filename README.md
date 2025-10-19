@@ -1,6 +1,6 @@
 # 🚀 Kubernetes Infrastructure - Complete Learning
 
-This project demonstrates a complete Kubernetes infrastructure with frontend, backend applications and MySQL database, including monitoring and CI/CD.
+This project demonstrates a complete Kubernetes infrastructure with frontend, backend applications and MariaDB database, including monitoring, auto-scaling, and multi-environment deployment using Helm charts.
 
 ## 📋 Overview
 
@@ -17,36 +17,63 @@ Cursor has been instrumental in accelerating my understanding of Kubernetes conc
 ### Architecture
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                DOCKER DESKTOP + KUBERNETES                 │
+│                DOCKER DESKTOP + KUBERNETES + HELM          │
 ├─────────────────────────────────────────────────────────────┤
-│  Frontend (React)     │  Backend (Node.js)  │  MySQL       │
+│  Frontend (React)     │  Backend (Node.js)  │  MariaDB     │
 │  - Nginx Ingress      │  - API REST         │  - Database  │
 │  - Service            │  - Service          │  - Service   │
-│  - Deployment         │  - Deployment       │  - Deployment│
-│                       │                     │  - PVC       │
+│  - Deployment         │  - Deployment       │  - StatefulSet│
+│  - HPA                │  - HPA              │  - PVC       │
 ├─────────────────────────────────────────────────────────────┤
-│  Monitoring: Prometheus + Grafana                           │
+│  Monitoring: Prometheus + Grafana (with subpath support)   │
 │  Storage: Persistent Volumes (Docker Desktop)              │
 │  Ingress: Nginx Ingress Controller                          │
+│  Deployment: Helm Charts (Multi-environment)               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### Components
-- **Frontend**: React + Nginx
-- **Backend**: Node.js + Express + MySQL2
-- **Database**: MySQL 8.0
-- **Monitoring**: Prometheus + Grafana
+- **Frontend**: React + Nginx (with dynamic configuration)
+- **Backend**: Node.js + Express + MariaDB2
+- **Database**: MariaDB (Bitnami Helm Chart)
+- **Monitoring**: Prometheus + Grafana (with subpath support)
 - **Ingress**: Nginx Ingress Controller
 - **Storage**: Persistent Volumes
+- **Deployment**: Helm Charts with multi-environment support
+- **Auto-scaling**: HPA (Horizontal Pod Autoscaler)
 
 ## 🛠️ Prerequisites
 
 - Docker Desktop with Kubernetes enabled
 - kubectl installed and configured
+- Helm 3.x installed
 - Node.js 18+ (for local development)
 - Git
 
 ## 🚀 Quick Start
+
+### Using Helm (Recommended)
+
+```bash
+# 1. Clone the repository
+git clone <your-repository>
+cd k8s
+
+# 2. Setup Helm dependencies
+./scripts/helm-setup.sh
+
+# 3. Deploy development environment
+./scripts/helm-deploy.sh dev
+
+# 4. Deploy staging environment (optional)
+./scripts/helm-deploy.sh staging
+
+# 5. Check status
+kubectl get pods -n k8s-demo-dev
+kubectl get pods -n k8s-demo-staging
+```
+
+### Using Traditional Kubernetes Manifests
 
 ```bash
 # 1. Clone the repository
@@ -73,8 +100,18 @@ k8s/
 ├── apps/                    # Applications
 │   ├── frontend/           # React + Nginx
 │   ├── backend/            # Node.js + Express
-│   └── database/           # MySQL
-├── k8s-manifests/          # Kubernetes Manifests
+│   └── database/           # MariaDB
+├── charts/                  # Helm Charts
+│   └── k8s-demo/           # Main application chart
+│       ├── Chart.yaml      # Chart metadata
+│       ├── values.yaml     # Default values
+│       └── templates/      # Kubernetes templates
+│           ├── _helpers.tpl # Helper templates
+│           ├── backend/    # Backend resources
+│           ├── frontend/   # Frontend resources
+│           ├── ingress/    # Ingress configuration
+│           └── autoscaling/ # HPA templates
+├── k8s-manifests/          # Traditional Kubernetes Manifests
 │   ├── namespace.yaml
 │   ├── mysql/
 │   ├── backend/
@@ -85,25 +122,34 @@ k8s/
 ├── docker/                 # Dockerfiles
 │   ├── Dockerfile.frontend
 │   ├── Dockerfile.backend
-│   └── mysql-init/
+│   ├── nginx-template.conf # Dynamic Nginx config
+│   └── start-nginx.sh      # Nginx startup script
 ├── scripts/                # Automation Scripts
-│   ├── setup.sh
-│   ├── deploy.sh
-│   ├── cleanup.sh
+│   ├── helm-setup.sh       # Helm dependencies setup
+│   ├── helm-deploy.sh      # Helm deployment
+│   ├── helm-upgrade.sh     # Helm upgrade
+│   ├── helm-cleanup.sh     # Helm cleanup
+│   ├── setup.sh            # Traditional setup
+│   ├── deploy.sh           # Traditional deploy
+│   ├── cleanup.sh          # Traditional cleanup
 │   ├── setup-autoscaling.sh
 │   ├── setup-vpa.sh
 │   ├── test-vpa.sh
 │   ├── load-test.sh
 │   └── setup-grafana-hpa-dashboard.sh
+├── values-dev.yaml         # Development environment values
+├── values-staging.yaml     # Staging environment values
 └── docs/                   # Documentation
     ├── DEPLOY.md
     ├── MONITORING.md
     ├── TROUBLESHOOTING.md
-    └── VPA-EXPERIMENT.md
+    ├── VPA-EXPERIMENT.md
+    └── HELM.md             # Helm deployment guide
 ```
 
 ## 📚 Documentation
 
+- [Helm Deployment Guide](docs/HELM.md) - **New!**
 - [Deploy Guide](docs/DEPLOY.md)
 - [Monitoring](docs/MONITORING.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
@@ -125,6 +171,71 @@ If you see "404 Not Found" when configuring Prometheus data source in Grafana:
 **Quick Fix**:
 ```bash
 ./scripts/fix-grafana-prometheus-datasource.sh
+```
+
+## 🎯 Helm Deployment
+
+This project now supports **Helm-based deployment** with multi-environment support, making it easier to manage different environments (dev, staging, production) with consistent configurations.
+
+### 🌍 Multi-Environment Support
+
+#### Development Environment
+```bash
+# Deploy development environment
+./scripts/helm-deploy.sh dev
+
+# Access URLs:
+# - Frontend: http://k8s-demo.local
+# - API: http://k8s-demo.local/api/users
+# - Prometheus: http://k8s-demo.local/prometheus/
+# - Grafana: http://k8s-demo.local/grafana/ (admin/dev-admin)
+```
+
+#### Staging Environment
+```bash
+# Deploy staging environment
+./scripts/helm-deploy.sh staging
+
+# Access URLs:
+# - Frontend: http://k8s-demo-staging.local
+# - API: http://k8s-demo-staging.local/api/users
+# - Prometheus: http://k8s-demo-staging.local/prometheus/
+# - Grafana: http://k8s-demo-staging.local/grafana/ (admin/staging-admin)
+```
+
+### 🔧 Helm Chart Features
+
+- **Dynamic Configuration**: Environment-specific values files
+- **Helper Templates**: Reusable template functions for ingress paths
+- **Dependency Management**: MariaDB, Prometheus, and Grafana as Helm dependencies
+- **Auto-scaling**: Built-in HPA templates for frontend and backend
+- **Subpath Support**: Prometheus and Grafana configured for subpath access
+- **Environment Variables**: Dynamic backend service discovery for frontend
+
+### 📋 Environment Configuration
+
+Each environment has its own values file:
+- `values-dev.yaml` - Development environment overrides
+- `values-staging.yaml` - Staging environment overrides
+- `charts/k8s-demo/values.yaml` - Default values for all environments
+
+### 🚀 Helm Commands
+
+```bash
+# Setup Helm dependencies
+./scripts/helm-setup.sh
+
+# Deploy specific environment
+./scripts/helm-deploy.sh <environment>
+
+# Upgrade existing deployment
+./scripts/helm-upgrade.sh <environment>
+
+# Clean up environment
+./scripts/helm-cleanup.sh <environment>
+
+# List all deployments
+helm list --all-namespaces
 ```
 
 ## 🚀 Auto-scaling Features
@@ -261,6 +372,32 @@ kubectl patch vpa backend-vpa -n k8s-demo --type='merge' -p='{"spec":{"updatePol
 # Delete everything
 ./scripts/cleanup.sh
 ```
+
+## 🆕 Recent Improvements
+
+### 🎯 Helm Chart Implementation
+- **Complete Helm Chart**: Full chart structure with templates for all components
+- **Multi-Environment Support**: Separate dev and staging environments with isolated configurations
+- **Helper Templates**: Reusable template functions for consistent ingress path management
+- **Dependency Management**: MariaDB, Prometheus, and Grafana as Helm chart dependencies
+
+### 🔧 Infrastructure Improvements
+- **Database Migration**: Migrated from MySQL to MariaDB for better compatibility
+- **Dynamic Nginx Configuration**: Implemented envsubst for environment-agnostic frontend configuration
+- **Subpath Support**: Configured Prometheus and Grafana to work properly in subpaths
+- **Environment Variables**: Dynamic backend service discovery for frontend containers
+
+### 🚀 Deployment Enhancements
+- **Automated Scripts**: Comprehensive Helm deployment, upgrade, and cleanup scripts
+- **Environment Isolation**: Separate namespaces and configurations for each environment
+- **Configuration Management**: Environment-specific values files with proper inheritance
+- **Cleanup**: Removed hardcoded paths and unused configuration files
+
+### 🐛 Bug Fixes
+- **Node-Exporter Issues**: Disabled node-exporter to avoid Docker Desktop compatibility problems
+- **Ingress Conflicts**: Resolved path conflicts between static files and application routes
+- **MIME Type Issues**: Fixed frontend static file serving with proper path ordering
+- **Service Discovery**: Implemented proper backend service discovery for frontend
 
 ## 🎯 Learning Objectives
 
