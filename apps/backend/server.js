@@ -106,6 +106,43 @@ app.get('/metrics', async (req, res) => {
   }
 });
 
+// API root endpoint
+app.get('/api/', (req, res) => {
+  res.json({ 
+    message: 'K8s Demo API is running!',
+    version: '1.0.0',
+    endpoints: {
+      users: '/api/users',
+      health: '/health',
+      metrics: '/metrics'
+    }
+  });
+});
+
+// Root endpoint (for ingress rewrite)
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'K8s Demo API is running!',
+    version: '1.0.0',
+    endpoints: {
+      users: '/api/users',
+      health: '/health',
+      metrics: '/metrics'
+    }
+  });
+});
+
+// Users endpoint (for ingress rewrite from /api/users to /users)
+app.get('/users', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT * FROM users ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
 // Get all users
 app.get('/api/users', async (req, res) => {
   try {

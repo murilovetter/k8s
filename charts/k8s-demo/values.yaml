@@ -1,0 +1,147 @@
+# Default values for k8s-demo
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  namespace: k8s-demo
+  environment: dev
+  domain: k8s-demo.local
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicas: 2
+  image:
+    repository: k8s-demo/frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPU: 60
+    targetMemory: 70
+
+# Backend configuration
+backend:
+  enabled: true
+  replicas: 2
+  image:
+    repository: k8s-demo/backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+    targetMemory: 80
+  env:
+    MYSQL_HOST: mysql
+    MYSQL_PORT: 3306
+    MYSQL_DATABASE: k8s_demo
+    MYSQL_USER: app_user
+    MYSQL_PASSWORD: password
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+
+# MariaDB dependency configuration
+mariadb:
+  enabled: true
+  image:
+    tag: latest
+  auth:
+    rootPassword: "password"
+    database: "k8s_demo"
+    username: "app_user"
+    password: "password"
+  primary:
+    persistence:
+      enabled: true
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+# Prometheus dependency configuration
+prometheus:
+  enabled: true
+  server:
+    baseURL: /prometheus
+    prefixURL: /prometheus
+    persistentVolume:
+      enabled: true
+      size: 2Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+  nodeExporter:
+    enabled: false
+
+# Grafana dependency configuration
+grafana:
+  enabled: true
+  adminPassword: "admin"
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      serve_from_sub_path: true
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  backend:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPU: 70
+    targetMemory: 80
+  frontend:
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPU: 60
+    targetMemory: 70
+

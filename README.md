@@ -327,10 +327,22 @@ kubectl patch vpa backend-vpa -n k8s-demo --type='merge' -p='{"spec":{"updatePol
 - [x] Grafana
 - [x] Dashboards
 
-### Phase 5: CI/CD
+### Phase 5: HELM
+- [ ] Helm charts creation
+- [ ] Application packaging
+- [ ] Values management
+- [ ] Chart dependencies
+
+### Phase 6: CI/CD
 - [ ] GitHub Actions
 - [ ] Docker Registry
-- [ ] Automated deploy
+- [ ] Automated deploy with Helm charts
+
+### Phase 7: ArgoCD
+- [ ] GitOps setup
+- [ ] Application definitions
+- [ ] Sync policies
+- [ ] Multi-environment management
 
 ## 🚀 Next Steps for Enhancement
 

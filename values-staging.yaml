@@ -1,0 +1,26 @@
+# Staging environment values
+global:
+  namespace: k8s-demo-staging
+  environment: staging
+  domain: k8s-demo-staging.local
+
+# Backend configuration - override database connection
+backend:
+  env:
+    MYSQL_HOST: k8s-demo-staging-mariadb
+    MYSQL_PASSWORD: staging-password
+
+# Ingress configuration - apenas o host, paths vêm do helper
+ingress:
+  hosts:
+    - host: k8s-demo-staging.local
+
+# MariaDB dependency configuration - override passwords
+mariadb:
+  auth:
+    rootPassword: "staging-password"
+    password: "staging-password"
+
+# Grafana dependency configuration - override admin password
+grafana:
+  adminPassword: "staging-admin"

@@ -1,0 +1,27 @@
+# Development environment values
+global:
+  namespace: k8s-demo-dev
+  environment: dev
+  domain: k8s-demo.local
+
+# Backend configuration - override database connection
+backend:
+  env:
+    MYSQL_HOST: k8s-demo-dev-mariadb
+    MYSQL_PASSWORD: dev-password
+
+# Ingress configuration - apenas o host, paths vêm do helper
+ingress:
+  hosts:
+    - host: k8s-demo.local
+
+# MariaDB dependency configuration - override passwords
+mariadb:
+  auth:
+    rootPassword: "dev-password"
+    password: "dev-password"
+
+# Grafana dependency configuration - override admin password
+grafana:
+  adminPassword: "dev-admin"
+

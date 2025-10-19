@@ -1,0 +1,60 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-demo.fullname" . }}-backend
+  namespace: {{ include "k8s-demo.namespace" . }}
+  labels:
+    {{- include "k8s-demo.backend.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "k8s-demo.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "k8s-demo.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: backend
+        image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+        imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.backend.service.targetPort }}
+        env:
+        - name: PORT
+          value: "{{ .Values.backend.service.targetPort }}"
+        - name: MYSQL_HOST
+          value: {{ .Values.backend.env.MYSQL_HOST | quote }}
+        - name: MYSQL_PORT
+          value: {{ .Values.backend.env.MYSQL_PORT | quote }}
+        - name: MYSQL_DATABASE
+          value: {{ .Values.backend.env.MYSQL_DATABASE | quote }}
+        - name: MYSQL_USER
+          value: {{ .Values.backend.env.MYSQL_USER | quote }}
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "k8s-demo.fullname" . }}-backend-secret
+              key: MYSQL_PASSWORD
+        resources:
+          {{- toYaml .Values.backend.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.backend.service.targetPort }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.backend.service.targetPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+{{- end }}
+
