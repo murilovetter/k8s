@@ -24,12 +24,12 @@ jobs:
     - name: Install Frontend Dependencies
       run: |
         cd apps/frontend
-        npm ci
+        npm install
     
     - name: Install Backend Dependencies
       run: |
         cd apps/backend
-        npm ci
+        npm install
     
     - name: Run Frontend Tests
       run: |
