@@ -4,8 +4,17 @@ global:
   environment: staging
   domain: k8s-demo-staging.local
 
+# Frontend configuration
+frontend:
+  image:
+    repository: ghcr.io/murilo/k8s/frontend
+    tag: latest
+
 # Backend configuration - override database connection
 backend:
+  image:
+    repository: ghcr.io/murilo/k8s/backend
+    tag: latest
   env:
     MYSQL_HOST: k8s-demo-staging-mariadb
     MYSQL_PASSWORD: staging-password

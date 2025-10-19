@@ -91,13 +91,19 @@ jobs:
         tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}
         labels: ${{ steps.meta.outputs.labels }}
 
-  deploy:
+  deploy-dev:
     needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    environment: development
     
     steps:
     - uses: actions/checkout@v3
+    
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.12.0'
     
     - name: Setup kubectl
       uses: azure/setup-kubectl@v3
@@ -109,22 +115,76 @@ jobs:
         echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
         export KUBECONFIG=kubeconfig
     
-    - name: Deploy to Kubernetes
+    - name: Update Helm dependencies
       run: |
-        # Update image tags in manifests
-        sed -i "s|k8s-demo/frontend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:${{ github.sha }}|g" k8s-manifests/frontend/deployment.yaml
-        sed -i "s|k8s-demo/backend:latest|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:${{ github.sha }}|g" k8s-manifests/backend/deployment.yaml
-        
-        # Apply manifests
-        kubectl apply -f k8s-manifests/namespace.yaml
-        kubectl apply -f k8s-manifests/mysql/
-        kubectl apply -f k8s-manifests/backend/
-        kubectl apply -f k8s-manifests/frontend/
-        kubectl apply -f k8s-manifests/ingress/
-        kubectl apply -f k8s-manifests/monitoring/
+        cd charts/k8s-demo
+        helm dependency update
     
-    - name: Verify deployment
+    - name: Deploy to Development
       run: |
-        kubectl get pods -n k8s-demo
-        kubectl get services -n k8s-demo
-        kubectl get ingress -n k8s-demo
+        # Update image tags in values-dev.yaml
+        sed -i "s|tag: latest|tag: ${{ github.sha }}|g" values-dev.yaml
+        
+        # Deploy using Helm
+        helm upgrade --install k8s-demo-dev ./charts/k8s-demo \
+          -f values-dev.yaml \
+          --namespace k8s-demo-dev \
+          --create-namespace \
+          --set frontend.image.tag=${{ github.sha }} \
+          --set backend.image.tag=${{ github.sha }} \
+          --wait --timeout=10m
+    
+    - name: Verify development deployment
+      run: |
+        kubectl get pods -n k8s-demo-dev
+        kubectl get services -n k8s-demo-dev
+        kubectl get ingress -n k8s-demo-dev
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.12.0'
+    
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'v1.28.0'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Update Helm dependencies
+      run: |
+        cd charts/k8s-demo
+        helm dependency update
+    
+    - name: Deploy to Staging
+      run: |
+        # Update image tags in values-staging.yaml
+        sed -i "s|tag: latest|tag: ${{ github.sha }}|g" values-staging.yaml
+        
+        # Deploy using Helm
+        helm upgrade --install k8s-demo-staging ./charts/k8s-demo \
+          -f values-staging.yaml \
+          --namespace k8s-demo-staging \
+          --create-namespace \
+          --set frontend.image.tag=${{ github.sha }} \
+          --set backend.image.tag=${{ github.sha }} \
+          --wait --timeout=10m
+    
+    - name: Verify staging deployment
+      run: |
+        kubectl get pods -n k8s-demo-staging
+        kubectl get services -n k8s-demo-staging
+        kubectl get ingress -n k8s-demo-staging

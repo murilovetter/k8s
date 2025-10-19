@@ -471,9 +471,9 @@ kubectl patch vpa backend-vpa -n k8s-demo --type='merge' -p='{"spec":{"updatePol
 - [x] Chart dependencies
 
 ### Phase 6: CI/CD
-- [ ] GitHub Actions
-- [ ] Docker Registry
-- [ ] Automated deploy with Helm charts
+- [x] GitHub Actions
+- [x] Docker Registry
+- [x] Automated deploy with Helm charts
 
 ### Phase 7: ArgoCD
 - [ ] GitOps setup

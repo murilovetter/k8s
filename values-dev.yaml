@@ -4,8 +4,17 @@ global:
   environment: dev
   domain: k8s-demo.local
 
+# Frontend configuration
+frontend:
+  image:
+    repository: ghcr.io/murilo/k8s/frontend
+    tag: latest
+
 # Backend configuration - override database connection
 backend:
+  image:
+    repository: ghcr.io/murilo/k8s/backend
+    tag: latest
   env:
     MYSQL_HOST: k8s-demo-dev-mariadb
     MYSQL_PASSWORD: dev-password
