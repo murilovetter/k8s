@@ -465,10 +465,10 @@ kubectl patch vpa backend-vpa -n k8s-demo --type='merge' -p='{"spec":{"updatePol
 - [x] Dashboards
 
 ### Phase 5: HELM
-- [ ] Helm charts creation
-- [ ] Application packaging
-- [ ] Values management
-- [ ] Chart dependencies
+- [x] Helm charts creation
+- [x] Application packaging
+- [x] Values management
+- [x] Chart dependencies
 
 ### Phase 6: CI/CD
 - [ ] GitHub Actions
